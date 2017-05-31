@@ -1,0 +1,2 @@
+geevesbot
+-DCATKIN_DEVEL_PREFIX=/home/ubuntu-ally/geeves_ws/devel -DCMAKE_INSTALL_PREFIX=/home/ubuntu-ally/geeves_ws/install -G Unix Makefiles

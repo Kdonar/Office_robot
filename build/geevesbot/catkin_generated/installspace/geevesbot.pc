@@ -1,0 +1,8 @@
+prefix=/home/ubuntu-ally/geeves_ws/install
+
+Name: geevesbot
+Description: Description of geevesbot
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/ubuntu-ally/geeves_ws/install/lib 
+Requires: 
