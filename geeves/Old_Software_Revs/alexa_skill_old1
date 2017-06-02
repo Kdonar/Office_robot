@@ -1,0 +1,326 @@
+{
+  "intents": [
+    {
+      "name": "AMAZON.CancelIntent",
+      "samples": [
+        "stop",
+        "cancel",
+        "end",
+        "abort",
+        "quit"
+      ]
+    },
+    {
+      "name": "AMAZON.HelpIntent",
+      "samples": [
+        "help",
+        "help me"
+      ]
+    },
+    {
+      "name": "AMAZON.StopIntent",
+      "samples": [
+        "stop",
+        "cancel",
+        "end",
+        "abort",
+        "quit"
+      ]
+    },
+    {
+      "name": "FindUser",
+      "samples": [
+        "{First_Name} {Last_Name}",
+        "{First_Name} {Last_Name} please",
+        "show me the desk of {First_Name} {Last_Name}",
+        "show me to the office of {First_Name} {Last_Name}",
+        "take me to the desk of {First_Name} {Last_Name}",
+        "take me to the office of {First_Name} {Last_Name}",
+        "i need to see {First_Name} {Last_Name}",
+        "i need to go see {First_Name} {Last_Name}",
+        "can you show me where to find {First_Name} {Last_Name}",
+        "where does {First_Name} {Last_Name} sit",
+        "take this to {First_Name} {Last_Name}",
+        "deliver this to {First_Name} {Last_Name}",
+        "take me to {First_Name} {Last_Name}",
+        "where can i find {First_Name} {Last_Name}",
+        "where is {First_Name} {Last_Name}",
+        "where {First_Name} {Last_Name} is",
+        "go to {First_Name} {Last_Name}",
+        "take candy to {First_Name} {Last_Name}",
+        "delivery candy to {First_Name} {Last_Name}",
+        "to show me to the office of {First_Name} {Last_Name} ",
+        "where {First_Name} {Last_Name} sits"
+      ],
+      "slots": [
+        {
+          "name": "First_Name",
+          "type": "List_of_First_Names",
+          "samples": []
+        },
+        {
+          "name": "Last_Name",
+          "type": "LIST_OF_LAST_NAMES",
+          "samples": []
+        }
+      ]
+    }
+  ],
+  "types": [
+    {
+      "name": "List_of_First_Names",
+      "values": [
+        {
+          "name": {
+            "value": "kj"
+          }
+        },
+        {
+          "name": {
+            "value": "jeff"
+          }
+        },
+        {
+          "name": {
+            "value": "mike"
+          }
+        },
+        {
+          "name": {
+            "value": "jane"
+          }
+        },
+        {
+          "name": {
+            "value": "paul"
+          }
+        },
+        {
+          "name": {
+            "value": "david"
+          }
+        },
+        {
+          "name": {
+            "value": "connor"
+          }
+        }
+      ]
+    },
+    {
+      "name": "LIST_OF_LAST_NAMES",
+      "values": [
+        {
+          "name": {
+            "value": "base"
+          }
+        },
+        {
+          "name": {
+            "value": "smith"
+          }
+        },
+        {
+          "name": {
+            "value": "hottenroth"
+          }
+        },
+        {
+          "name": {
+            "value": "bissig"
+          }
+        },
+        {
+          "name": {
+            "value": "abney"
+          }
+        },
+        {
+          "name": {
+            "value": "alvord"
+          }
+        },
+        {
+          "name": {
+            "value": "bellinger"
+          }
+        },
+        {
+          "name": {
+            "value": "chaudhary"
+          }
+        },
+        {
+          "name": {
+            "value": "drake"
+          }
+        },
+        {
+          "name": {
+            "value": "grant"
+          }
+        },
+        {
+          "name": {
+            "value": "lewis"
+          }
+        },
+        {
+          "name": {
+            "value": "lu"
+          }
+        },
+        {
+          "name": {
+            "value": "mcmanus"
+          }
+        },
+        {
+          "name": {
+            "value": "nestvold"
+          }
+        },
+        {
+          "name": {
+            "value": "paton"
+          }
+        },
+        {
+          "name": {
+            "value": "petersen"
+          }
+        },
+        {
+          "name": {
+            "value": "read"
+          }
+        },
+        {
+          "name": {
+            "value": "shui"
+          }
+        },
+        {
+          "name": {
+            "value": "wulanzandan"
+          }
+        },
+        {
+          "name": {
+            "value": "xu"
+          }
+        },
+        {
+          "name": {
+            "value": "yang"
+          }
+        },
+        {
+          "name": {
+            "value": "zhang"
+          }
+        },
+        {
+          "name": {
+            "value": "calmeise"
+          }
+        },
+        {
+          "name": {
+            "value": "clements"
+          }
+        },
+        {
+          "name": {
+            "value": "yu"
+          }
+        },
+        {
+          "name": {
+            "value": "haney"
+          }
+        },
+        {
+          "name": {
+            "value": "abbott"
+          }
+        },
+        {
+          "name": {
+            "value": "dollar"
+          }
+        },
+        {
+          "name": {
+            "value": "platts"
+          }
+        },
+        {
+          "name": {
+            "value": "vincenti"
+          }
+        },
+        {
+          "name": {
+            "value": "ward"
+          }
+        },
+        {
+          "name": {
+            "value": "gardner"
+          }
+        },
+        {
+          "name": {
+            "value": "donar"
+          }
+        },
+        {
+          "name": {
+            "value": "jessie"
+          }
+        },
+        {
+          "name": {
+            "value": "collins"
+          }
+        },
+        {
+          "name": {
+            "value": "mccluggage"
+          }
+        },
+        {
+          "name": {
+            "value": "koyama"
+          }
+        },
+        {
+          "name": {
+            "value": "day"
+          }
+        },
+        {
+          "name": {
+            "value": "shuck"
+          }
+        },
+        {
+          "name": {
+            "value": "froelicher"
+          }
+        },
+        {
+          "name": {
+            "value": "thompson"
+          }
+        },
+        {
+          "name": {
+            "value": "martinez"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,622 @@
+# geeves.py
+
+# This software is for use with a turtlebot robotics platform using ROS.
+# Office coordinates are stored in an Amazon AWS DynamoDB database.
+# Users ask Amazon Alexa to have GE.EVES show them the office of a particular person.
+# The Alexa request must include the First Name and Last Name of the person the user is seeking.
+# An Amazon Alexa skill called GE.EVES Bot has been created.
+# Software to handle the Amazon Alexa input is hosted by Amazon AWS Lambda.  
+# Software on Amazon AWS Lambda is saved as hitchhiker_lambda.py.
+# Added topic 'LED_state' to communicate to Arduino that controls face LEDs 
+# And publishing Kobuki battery level when docked at station on kobuki_battery topic - 4.4.2017
+# Updated battery communication protocol and how to identify when docked - 5.18.2017
+# Removed "self." from rospy publishers in __init__ and from led.publish & head.publish call in functions
+
+# Begin general purpose related items
+from __future__ import print_function # Python 2/3 compatibility
+import sys
+import json # JSON encoder and decoder
+import decimal # Capability to use Python decimal function
+import time
+from tf import transformations
+import math
+# End general purpose related items
+
+# Begin ROS related items
+import rospy # ROS python API
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+import actionlib
+from actionlib_msgs.msg import *
+from geometry_msgs.msg import Pose, PoseWithCovarianceStamped, Point, Quaternion, Twist
+from std_msgs.msg import Int8 # Message type to be used with Arduino
+import roslib
+# End ROS related items
+
+# Begin Kobuki robot base related items
+from kobuki_msgs.msg import PowerSystemEvent, AutoDockingAction, AutoDockingGoal, SensorState, AutoDockingResult
+from smart_battery_msgs.msg import SmartBatteryStatus
+# End Kobuki robot base related items
+
+# Begin Amazon Lambda related items
+import boto3 # Amazon Web Services SDK for Python
+from boto3.dynamodb.conditions import Key, Attr
+from botocore.exceptions import ClientError
+# End Amazon Lambda related items
+
+# Helper class to convert a DynamoDB item to JSON.
+class DecimalEncoder(json.JSONEncoder):
+	def default(self, o):
+	  if isinstance(o, decimal.Decimal):
+	      if o % 1 > 0:
+		return float (o)
+	      else:
+		return int (o)
+	  return super(DecimalEncoder, self).default(o)
+
+class GeevesBot():
+
+    # Docking station X & Y coordinates and robot angle
+    docking_station_x = -.45
+    docking_station_y = -.16
+    docking_station_angle = 0
+
+    # Kobuki battery max charge level found by running rostopic echo /mobile_base/sensors/core on netbook
+    kobuki_base_max_charge = 162
+
+    # Amazon DynamoDB keys required to access database
+    ACCESS_KEY='AKIAJE3KLYOD2MKHQFCA'
+    SECRET_KEY='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'
+
+    #Default values
+    error_location = 'Unknown'
+    move_base = False  # Converted to True by __init__ and sets the goals using MoveBaseAction
+    kobuki_low_battery = False
+    netbook_low_battery = False
+    netbook_previous_battery_level = 100
+    kobuki_previous_battery_level = 1000 # Value > actual maximum, just makes script start assuming battery is ok
+    at_docking_station = False
+    wait_near_docking_station = 90
+    wait_server_to_start = 30
+    wait_autodock_server_to_start = 180
+    wait_locate_office = 90
+    count_locate_office = 0
+    wait_db_count = 2
+    locate_office_id = 'IDO001A'
+    error_flag = False
+
+    #Establishing head state for communication with Arduino
+    head_position = 1 # Head facing backward = 0, facing forward = 1
+
+    #Establishing LED state for communication with Arduino
+    #Driving around = 0, backing away from dock = 1, at dock, battery 90 - 100% = 2,
+    #at dock, battery 80 - 89% = 3, at dock, battery 60 - 79% = 4, at dock, battery < 60% = 5
+    #robot_error = 6
+    led_state = 0
+
+    #Value to provide Arduino regarding relative charge state of battery.  Will be based on percentage.
+    robot_battery = 100
+
+    def __init__(self):
+
+        # Initialize ROS node
+        rospy.init_node('geeves', anonymous=False)
+    
+        # Instruction on what to do if shutdown (Ctrl + C or failure)
+        rospy.on_shutdown(self.shutdown)
+
+        # Start move base thread using the action client
+        self.move_base = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+
+	# Monitor Kobuki base power and charging status.
+	rospy.Subscriber("/mobile_base/sensors/core", SensorState, self.KobukiNeedsCharging)
+
+	# Monitor netbook's battery power
+	rospy.Subscriber("/laptop_charge/", SmartBatteryStatus, self.NetbookNeedsCharging)
+
+	# Set global variables for led and head to be used with rospy publisher
+	global head
+	global led
+
+	# Establish topic for sending message about desired robot head position	
+	self.head = rospy.Publisher("/head_state", Int8, queue_size=10)
+
+	# Establish topic for sending message about desired robot face LED state
+	self.led = rospy.Publisher("/led_state", Int8, queue_size=10)
+
+        # Allow time for the action server to start
+        self.move_base.wait_for_server(rospy.Duration(self.wait_server_to_start))
+
+    def EscortUser(self):
+
+	if (self.error_flag):
+	    print (self.error_location)
+            self.led_state = 6
+            self.led.publish(self.led_state) 
+	    raise Exception (self.error_location)        
+
+	# Determine if the robot is busy charging and needs to continue to charge
+	if (self.at_docking_station and self.NeedsCharging()):
+ 	    time.sleep(30)
+            self.EscortUser()
+	    return True
+
+	# Determine if the robot is at the docking station and is ready to go!
+	elif (self.at_docking_station and not self.NeedsCharging()):
+	    self.CountLocateOfficeRequests()
+	    return True
+
+	# Determine if the robot needs charging and is not at the docking station
+	elif (self.NeedsCharging() and not self.at_docking_station):
+	    self.ReturnToDockingStation()
+	    return True
+
+	# Not at charging station and does not need charge.
+	# Allow a short time before going back to the charging station.
+	else:
+	    self.WaitForNextRequest()
+	    return True
+
+    def KobukiNeedsCharging(self, data):
+
+	self.robot_battery = int(round(float(data.battery)/float(self.kobuki_base_max_charge))*100)
+	
+	# Determine if Kobuki battery has less than 30% charge.  If so, indicate it needs charging.	
+	if self.robot_battery < 30:
+	    
+	    if (not self.kobuki_low_battery):
+		rospy.loginfo("Kobuki battery is low")
+		
+	    self.kobuki_low_battery = True
+
+	# Determine if Kobuki battery has more than 50% charge.  If so, indicate the battery is ok.	
+	elif self.robot_battery > 50:
+
+	    if (self.kobuki_low_battery):
+		rospy.loginfo("Kobuki battery is fine")
+	
+	    self.kobuki_low_battery = False
+
+	# Determine if robot is at docking station
+	# Set head position based upon docking station state
+
+	if(int(data.charger) == 0):
+
+	    if(self.at_docking_station):
+
+		rospy.loginfo("Stopped charging at docking station")
+	
+	    self.at_docking_station = False
+
+	else:
+
+	    if (not self.head_position == 0):
+
+		self.head_position = 0  
+		rospy.loginfo(self.head_position) 
+		self.head.publish(self.head_position)
+
+	    if(not self.at_docking_station):
+
+		rospy.loginfo("Charging at docking station")
+	
+	    self.at_docking_station = True
+
+        # Information to inform Arduino to put LEDs into 'at docking station' state
+	if (self.at_docking_station and not self.error_flag):
+
+       	    if (self.robot_battery >= 90):
+		self.led_state = 2
+            elif (self.robot_battery >= 80):
+		self.led_state = 3
+	    elif (self.robot_battery >= 60):
+		self.led_state = 4
+	    else:
+		self.led_state = 5
+        
+        self.led.publish(self.led_state)
+	return True
+
+    def NetbookNeedsCharging(self, data):
+
+	# Determine if the Netbook battery has less than 30% charge.  If so, indicate it needs charging.
+	if (int(data.percentage) < 30):
+
+	    if (not self.netbook_low_battery):
+		rospy.loginfo("Netbook battery is low")
+	    
+	    self.netbook_low_battery = True
+	
+	# Determine if Netbook has more than 50% charge.  If so, indicate the battery is fine.
+	
+	elif (int(data.percentage) > 50):
+
+	    if (self.netbook_low_battery):
+		rospy.loginfo("Netbook battery is ok")
+	    
+	    self.netbook_low_battery = False
+
+    def NeedsCharging(self):
+
+	if (self.netbook_low_battery or self.kobuki_low_battery):
+		return True
+
+	else:
+		return False
+
+    def ReturnToDockingStation(self):
+
+	# Instructs robot to go near to the docking station so it can self dock
+
+	rospy.loginfo("Going near the docking station")
+
+	goal = MoveBaseGoal()
+	goal.target_pose.header.frame_id = 'map'
+	goal.target_pose.header.stamp = rospy.Time.now()
+
+	# Transform the robot angle to a quaternion for robot orientation
+
+	base_quat = transformations.quaternion_from_euler(0, 0, math.radians(self.docking_station_angle))
+
+	# Set the goal to have the coordinates and angle required to be near the docking station
+
+	goal.target_pose.pose = Pose(Point(float(self.docking_station_x), float(self.docking_station_y), float(0)), Quaternion (float(base_quat[0]), float(base_quat[1]), float(base_quat[2]), float(base_quat[3])))
+
+	# Direct the robot to begin moving
+	
+	self.move_base.send_goal(goal)
+
+	# Give the robot to time to get close to the docking station
+
+	success = self.move_base.wait_for_result(rospy.Duration(self.wait_near_docking_station))
+
+	if success:
+
+	    state = self.move_base.get_state()
+	
+	    if state == GoalStatus.SUCCEEDED:
+		rospy.loginfo("The robot made it near the docking station")
+		self.DockWithDockingStation()
+	  	return True
+	    
+	    rospy.loginfo("Near docking station, but goal not confirmed")
+	    self.DockWithDockingStation()
+	    return True
+
+	else:
+
+	    self.move_base.cancel_goal()
+	    rospy.loginfo("The robot did not make it to the destination near the docking station")
+	    self.error_flag = True
+	    self.error_location = 'ReturntoDockingStation failed'
+	    self.led_state = 6
+	    self.led.publish(self.led_state) 
+	    self.EscortUser()
+	    return False
+
+    def DockWithDockingStation(self):
+
+        # Automatically docks robot with docking station if the robot is close to the docking station
+
+        self._client = actionlib.SimpleActionClient('/dock_drive_action', AutoDockingAction)
+        rospy.loginfo("Waiting for Auto Docking server")
+        self._client.wait_for_server()
+        rospy.loginfo("auto_docking server found")
+        goal = AutoDockingGoal()
+        rospy.loginfo("Sending auto docking goal and waiting for results")
+    
+        self._client.send_goal(goal)
+
+        success = self._client.wait_for_result(rospy.Duration(self.wait_autodock_server_to_start))
+
+        if success:
+
+	    rospy.loginfo("Auto_docking succeeded")
+	    self.at_docking_station = True
+
+	    # Information to inform Arduino to turn head into proper position, publishing to 'head_state' topic
+	    self.head_position = 0  
+	    rospy.loginfo(self.head_position) 
+	    self.head.publish(self.head_position)
+ 
+	    self.EscortUser()
+	    return True
+
+        else:
+
+	    rospy.loginfo("Auto_docking failed")
+	    self.error_flag = True
+	    self.error_location = 'DockWithDockingStation failed'
+	    self.led_state = 6
+	    self.led.publish(self.led_state) 	    
+	    self.at_docking_station = False
+	    self.EscortUser()
+	    return False
+
+    def CountLocateOfficeRequests(self):
+
+	while (self.count_locate_office == 0):
+
+	    time.sleep(self.wait_db_count)
+
+	    # Reference the appropriate AWS service
+	    dynamodb = boto3.resource(
+	             'dynamodb',
+	              aws_access_key_id=self.ACCESS_KEY,
+	              aws_secret_access_key=self.SECRET_KEY,
+	    )
+
+	    locate_office_field = 'TRUE'
+
+            table = dynamodb.Table('IDO_Studio')
+
+	    response = table.query(
+	             TableName='IDO_Studio',
+	             IndexName='Locate_Office-index',
+	             KeyConditionExpression=Key('Locate_Office').eq(locate_office_field)
+            )
+
+            self.count_locate_office = response['Count']
+
+	# If exactly one request, start navigating toward the office
+	if (self.count_locate_office == 1):
+	
+            self.locate_office_id = response[u'Items'][0][u'Office']    	
+	    self.count_locate_office = 0
+
+	    if (self.at_docking_station):
+	        return self.BackAwayFromDock()
+			    
+	    return self.LocateOffice()
+
+	# There is more than one request identified.  Reset the database table and restart program.	
+	else:
+
+	    table = dynamodb.Table('IDO_Studio')
+	    locate_office_field = 'TRUE'
+
+	    # While loop until count = 0
+	    while (self.count_locate_office != 0):    
+
+		response = table.query(
+	            TableName='IDO_Studio',
+	            IndexName='Locate_Office-index',
+	            KeyConditionExpression=Key('Locate_Office').eq(locate_office_field)
+        	)
+
+        	self.locate_office_id = response[u'Items'][0][u'Office']
+		locate_office_field = 'FALSE'
+
+		response = table.update_item(
+		    Key = {
+		        'Office' : self.locate_office_id,
+			 },
+			UpdateExpression = "set Locate_Office = :o",
+			ExpressionAttributeValues = {
+	    		':o' : locate_office_field
+			},
+		)
+
+		locate_office_field = 'TRUE'
+		self.count_locate_office = self.count_locate_office - 1
+
+	    self.EscortUser()
+            return True    
+
+    def BackAwayFromDock(self):
+
+        rospy.loginfo("Backing up from the docking station")
+	time.sleep(1)
+
+	cmd_vel = rospy.Publisher('cmd_vel_mux/input/navi', Twist, queue_size=10)
+	time.sleep(1)
+
+	# Twist is a velocity datatype	
+	move_cmd = Twist()
+
+	# Move backwards at 0.1 m/sec
+	move_cmd.linear.x = -0.1
+	
+	# Do not turn
+	move_cmd.angular.z = 0
+
+	r = rospy.Rate(10);
+	temp_count = 0
+	
+	# Back up at 0.1 m/sec for 2 seconds
+	while (not rospy.is_shutdown() and temp_count < 20):
+
+            # Information to inform Arduino to turn put LEDs into 'backing away from dock' state
+	    if (not self.led_state == 1):
+		self.led_state = 1
+		self.led.publish(self.led_state)
+
+	    cmd_vel.publish(move_cmd)
+	    temp_count = temp_count + 1
+	    r.sleep()
+
+	# Stop the robot by sending a Twist command
+	cmd_vel.publish(Twist())
+
+	self.at_docking_station = False
+
+	# Information to inform Arduino to turn head into proper position, publishing to 'head_state' topic
+	self.head_position = 1  
+	rospy.loginfo(self.head_position) 
+	self.head.publish(self.head_position)
+	
+	# Allow some time for the head to turn before locating the desired office
+	time.sleep(2)
+	
+	return self.LocateOffice()
+	
+    def LocateOffice(self):
+
+	rospy.loginfo("I'm leaving for an office now")
+
+        # Information to inform Arduino to turn put LEDs into 'driving around' state
+	self.led_state = 0
+        self.led.publish(self.led_state)
+
+	goal = MoveBaseGoal()
+	goal.target_pose.header.frame_id = 'map'
+	goal.target_pose.header.stamp = rospy.Time.now()
+
+	# Reference the appropriate AWS service
+	dynamodb = boto3.resource(
+	         'dynamodb',
+	          aws_access_key_id=self.ACCESS_KEY,
+	          aws_secret_access_key=self.SECRET_KEY,
+	)
+
+        table = dynamodb.Table('IDO_Studio')
+
+	# Get coordinates and angle for the desired office location
+	response = table.query(
+	    TableName='IDO_Studio',
+	    KeyConditionExpression=Key('Office').eq(self.locate_office_id)
+	)
+
+	x_coord = response[u'Items'][0][u'X_Coord']
+	y_coord = response[u'Items'][0][u'Y_Coord']
+	angle = response[u'Items'][0][u'Angle']
+
+	# Change locate office flag in database to False
+	locate_office_field = 'FALSE'
+	response = table.update_item(
+	    Key = {
+	    'Office' : self.locate_office_id,
+	    },
+	    UpdateExpression = "set Locate_Office = :o",
+	    ExpressionAttributeValues = {
+	    ':o' : locate_office_field
+	    },
+	)
+
+	# Transform the robot angle to a quaternion for robot orientation
+	base_quat = transformations.quaternion_from_euler(0, 0, math.radians(angle))
+
+	# Set the goal to have the coordinates and angle required to be near the docking station
+	goal.target_pose.pose = Pose(Point(float(x_coord), float(y_coord), float(0)), Quaternion (float(base_quat[0]), float(base_quat[1]), float(base_quat[2]), float(base_quat[3])))
+
+	# Direct the robot to begin moving
+	self.move_base.send_goal(goal)
+
+	# Give the robot up to time to get close to the docking station
+	success = self.move_base.wait_for_result(rospy.Duration(self.wait_locate_office))
+
+	if success:
+
+	    state = self.move_base.get_state()
+	
+	    if state == GoalStatus.SUCCEEDED:
+		rospy.loginfo("The robot made it to the identified office")
+		
+	    self.at_docking_station = False	    
+	    self.WaitForNextRequest()
+	    return True
+
+	else:
+
+	    self.move_base.cancel_goal()
+	    rospy.loginfo("The robot did not make it to the identified office")
+	    self.error_flag = True
+	    self.error_location = 'LocateOffice failed'
+	    self.led_state = 6
+	    self.led.publish(self.led_state) 
+	    self.at_docking_station = False
+	    self.EscortUser()
+	    return False
+
+    def WaitForNextRequest(self):
+
+	# If battery needs charging return to the docking station
+	if (self.NeedsCharging()):
+	    return self.ReturnToDockingStation()
+
+	# Wait for some time to allow for Alexa to receive a new locate office request	
+	time.sleep(15)
+
+	# Reference the appropriate AWS service
+	dynamodb = boto3.resource(
+	         'dynamodb',
+	          aws_access_key_id=self.ACCESS_KEY,
+	          aws_secret_access_key=self.SECRET_KEY,
+	)
+
+	locate_office_field = 'TRUE'
+
+        table = dynamodb.Table('IDO_Studio')
+
+	response = table.query(
+	         TableName='IDO_Studio',
+	         IndexName='Locate_Office-index',
+	         KeyConditionExpression=Key('Locate_Office').eq(locate_office_field)
+        )
+
+        self.count_locate_office = response['Count']
+
+	# Counting requests, if none present return to the docking station.
+	if (self.count_locate_office != 1):
+	    self.ReturnToDockingStation()
+	    return True
+
+	# If exactly one request, start navigating toward the office
+	else:
+	    
+	    self.locate_office_id = response[u'Items'][0][u'Office']
+            self.count_locate_office = 0	    
+	    return self.LocateOffice()
+
+    def shutdown(self):
+        rospy.loginfo("Stop")
+
+
+if __name__ == '__main__':
+
+    try:
+        
+	geeves = GeevesBot()
+	geeves.EscortUser()
+
+    except (rospy.ROSInterruptException or geeves.error_flag):
+	
+	if (geeves.error_flag):
+	    print ('Geeves error flag thrown')
+	    print (geeves.error_location)
+            sys.exit(1)
+	    
+	if (rospy.ROSInterruptException):
+            rospy.loginfo("Exception thrown")
+	    print ('ROS Interrupt Exception thrown')
+	    sys.exit(1)
+
+	else:
+	
+	    print ('Exception thrown - unknown source')
+	    sys.exit(1)
+	
+	
+
+	    
+
+
+
+
+	
+
+	
+
+	
+		
+	
+
+	
+
+        
+
+	
+
+            
+        
+
+    

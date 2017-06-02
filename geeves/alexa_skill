@@ -1,0 +1,430 @@
+{
+  "intents": [
+    {
+      "name": "AMAZON.CancelIntent",
+      "samples": [
+        "stop",
+        "cancel",
+        "end",
+        "abort",
+        "quit"
+      ]
+    },
+    {
+      "name": "AMAZON.HelpIntent",
+      "samples": [
+        "help",
+        "help me"
+      ]
+    },
+    {
+      "name": "AMAZON.StopIntent",
+      "samples": [
+        "stop",
+        "cancel",
+        "end",
+        "abort",
+        "quit"
+      ]
+    },
+    {
+      "name": "FindUser",
+      "samples": [
+        "{First_Name} {Last_Name}",
+        "{First_Name} {Last_Name} please"
+      ],
+      "slots": [
+        {
+          "name": "First_Name",
+          "type": "List_of_First_Names",
+          "samples": []
+        },
+        {
+          "name": "Last_Name",
+          "type": "LIST_OF_LAST_NAMES",
+          "samples": []
+        }
+      ]
+    },
+    {
+      "name": "NoIntent",
+      "samples": [
+        "no",
+        "nope",
+        "nah",
+        "negative",
+        "wrong",
+        "incorrect"
+      ],
+      "slots": [
+        {
+          "name": "No_List",
+          "type": "No_List",
+          "samples": []
+        }
+      ]
+    },
+    {
+      "name": "YesIntent",
+      "samples": [
+        "yes",
+        "yeah",
+        "yep",
+        "correct",
+        "right",
+        "affirmative",
+        "bingo",
+        "aye"
+      ],
+      "slots": [
+        {
+          "name": "Yes_List",
+          "type": "Yes_List",
+          "samples": []
+        }
+      ]
+    }
+  ],
+  "types": [
+    {
+      "name": "List_of_First_Names",
+      "values": [
+        {
+          "name": {
+            "value": "kj"
+          }
+        },
+        {
+          "name": {
+            "value": "jeff"
+          }
+        },
+        {
+          "name": {
+            "value": "mike"
+          }
+        },
+        {
+          "name": {
+            "value": "jane"
+          }
+        },
+        {
+          "name": {
+            "value": "paul"
+          }
+        },
+        {
+          "name": {
+            "value": "david"
+          }
+        },
+        {
+          "name": {
+            "value": "connor"
+          }
+        },
+        {
+          "name": {
+            "value": "marvin"
+          }
+        }
+      ]
+    },
+    {
+      "name": "LIST_OF_LAST_NAMES",
+      "values": [
+        {
+          "name": {
+            "value": "base"
+          }
+        },
+        {
+          "name": {
+            "value": "smith"
+          }
+        },
+        {
+          "name": {
+            "value": "hottenroth"
+          }
+        },
+        {
+          "name": {
+            "value": "bissig"
+          }
+        },
+        {
+          "name": {
+            "value": "abney"
+          }
+        },
+        {
+          "name": {
+            "value": "alvord"
+          }
+        },
+        {
+          "name": {
+            "value": "bellinger"
+          }
+        },
+        {
+          "name": {
+            "value": "chaudhary"
+          }
+        },
+        {
+          "name": {
+            "value": "drake"
+          }
+        },
+        {
+          "name": {
+            "value": "grant"
+          }
+        },
+        {
+          "name": {
+            "value": "lewis"
+          }
+        },
+        {
+          "name": {
+            "value": "lu"
+          }
+        },
+        {
+          "name": {
+            "value": "mcmanus"
+          }
+        },
+        {
+          "name": {
+            "value": "nestvold"
+          }
+        },
+        {
+          "name": {
+            "value": "paton"
+          }
+        },
+        {
+          "name": {
+            "value": "petersen"
+          }
+        },
+        {
+          "name": {
+            "value": "read"
+          }
+        },
+        {
+          "name": {
+            "value": "shui"
+          }
+        },
+        {
+          "name": {
+            "value": "wulanzandan"
+          }
+        },
+        {
+          "name": {
+            "value": "xu"
+          }
+        },
+        {
+          "name": {
+            "value": "yang"
+          }
+        },
+        {
+          "name": {
+            "value": "zhang"
+          }
+        },
+        {
+          "name": {
+            "value": "calmeise"
+          }
+        },
+        {
+          "name": {
+            "value": "clements"
+          }
+        },
+        {
+          "name": {
+            "value": "yu"
+          }
+        },
+        {
+          "name": {
+            "value": "haney"
+          }
+        },
+        {
+          "name": {
+            "value": "abbott"
+          }
+        },
+        {
+          "name": {
+            "value": "dollar"
+          }
+        },
+        {
+          "name": {
+            "value": "platts"
+          }
+        },
+        {
+          "name": {
+            "value": "vincenti"
+          }
+        },
+        {
+          "name": {
+            "value": "ward"
+          }
+        },
+        {
+          "name": {
+            "value": "gardner"
+          }
+        },
+        {
+          "name": {
+            "value": "donar"
+          }
+        },
+        {
+          "name": {
+            "value": "jessie"
+          }
+        },
+        {
+          "name": {
+            "value": "collins"
+          }
+        },
+        {
+          "name": {
+            "value": "mccluggage"
+          }
+        },
+        {
+          "name": {
+            "value": "koyama"
+          }
+        },
+        {
+          "name": {
+            "value": "day"
+          }
+        },
+        {
+          "name": {
+            "value": "shuck"
+          }
+        },
+        {
+          "name": {
+            "value": "froelicher"
+          }
+        },
+        {
+          "name": {
+            "value": "thompson"
+          }
+        },
+        {
+          "name": {
+            "value": "martinez"
+          }
+        },
+        {
+          "name": {
+            "value": "martian"
+          }
+        }
+      ]
+    },
+    {
+      "name": "No_List",
+      "values": [
+        {
+          "name": {
+            "value": "no"
+          }
+        },
+        {
+          "name": {
+            "value": "nope"
+          }
+        },
+        {
+          "name": {
+            "value": "nah"
+          }
+        },
+        {
+          "name": {
+            "value": "wrong"
+          }
+        },
+        {
+          "name": {
+            "value": "incorrect"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Yes_List",
+      "values": [
+        {
+          "name": {
+            "value": "yes"
+          }
+        },
+        {
+          "name": {
+            "value": "yep"
+          }
+        },
+        {
+          "name": {
+            "value": "yeah"
+          }
+        },
+        {
+          "name": {
+            "value": "right"
+          }
+        },
+        {
+          "name": {
+            "value": "correct"
+          }
+        },
+        {
+          "name": {
+            "value": "affirmative"
+          }
+        },
+        {
+          "name": {
+            "value": "aye"
+          }
+        },
+        {
+          "name": {
+            "value": "bingo"
+          }
+        }
+      ]
+    }
+  ]
+}

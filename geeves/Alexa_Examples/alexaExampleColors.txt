@@ -1,0 +1,54 @@
+Intent Schema
+
+{
+  "intents": [
+    {
+      "intent": "MyColorIsIntent",
+      "slots": [
+        {
+          "name": "Color",
+          "type": "LIST_OF_COLORS"
+        }
+      ]
+    },
+    {
+      "intent": "WhatsMyColorIntent"
+    },
+    {
+      "intent": "AMAZON.HelpIntent"
+    }
+  ]
+}
+
+
+Enter type LIST_OF_COLORS, and enter the following values.
+
+green
+red
+blue
+orange
+gold
+silver
+yellow
+black
+white
+
+Sample Utterances
+
+WhatsMyColorIntent what's my favorite color
+WhatsMyColorIntent what is my favorite color
+WhatsMyColorIntent what's my color
+WhatsMyColorIntent what is my color
+WhatsMyColorIntent my color
+WhatsMyColorIntent my favorite color
+WhatsMyColorIntent get my color
+WhatsMyColorIntent get my favorite color
+WhatsMyColorIntent give me my favorite color
+WhatsMyColorIntent give me my color
+WhatsMyColorIntent what my color is
+WhatsMyColorIntent what my favorite color is
+WhatsMyColorIntent yes
+WhatsMyColorIntent yup
+WhatsMyColorIntent sure
+WhatsMyColorIntent yes please
+MyColorIsIntent my favorite color is {Color}
