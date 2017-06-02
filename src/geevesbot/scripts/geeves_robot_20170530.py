@@ -1,5 +1,5 @@
 #!usr/bin/env python
-# geeves.py
+
 
 # This software is for use with a turtlebot robotics platform using ROS.
 # Office coordinates are stored in an Amazon AWS DynamoDB database.
