@@ -94,13 +94,13 @@ class GeevesBot():
     #Driving around = 0, backing away from dock = 1, at dock, battery 90 - 100% = 2,
     #at dock, battery 80 - 89% = 3, at dock, battery 60 - 79% = 4, at dock, battery < 60% = 5
     #robot_error = 6
-    self.led_state = 0
 
     #Value to provide Arduino regarding relative charge state of battery.  Will be based on percentage.
     robot_battery = 100
 
     def __init__(self):
-
+	#test for self.led_state
+	self.led_state = 0
         # Initialize ROS node
         rospy.init_node('geeves', anonymous=False)
     
